@@ -1,0 +1,21 @@
+# =============================================================================
+# Meera Bakery — Python backend dependencies
+# Pinned to exact minor versions for reproducibility.
+# Run: pip install -r requirements.txt
+# =============================================================================
+
+# Web framework
+fastapi==0.115.12
+
+# ASGI server (standard extras include websockets + uvloop on Linux)
+uvicorn[standard]==0.34.2
+
+# MySQL driver with built-in connection pooling (pure Python, no C extension)
+mysql-connector-python==9.3.0
+
+# Request / response validation and settings management
+pydantic==2.11.3
+pydantic-settings==2.9.1
+
+# Load .env file in local development
+python-dotenv==1.1.0

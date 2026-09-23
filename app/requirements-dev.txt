@@ -1,0 +1,19 @@
+# =============================================================================
+# Meera Bakery — development / test dependencies
+# Install with: pip install -r requirements-dev.txt
+# (also installs requirements.txt transitively via -r)
+# =============================================================================
+
+-r requirements.txt
+
+# Test runner
+pytest==8.3.5
+
+# Async HTTP client — used as the FastAPI test client
+httpx==0.28.1
+
+# Async test support for pytest
+pytest-asyncio==0.26.0
+
+# Test coverage reporting
+pytest-cov==6.1.0

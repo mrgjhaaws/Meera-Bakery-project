@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Product details — Meera Bakery Online." />
+  <title>Product — Meera Bakery Online</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container site-header__bar">
+      <a href="index.html" class="brand">
+        <span class="brand__mark">M</span>
+        Meera Bakery
+      </a>
+      <nav class="main-nav" id="mainNav">
+        <a href="index.html" data-nav="index.html">Home</a>
+        <a href="products.html" data-nav="products.html">Products</a>
+        <a href="index.html#about" data-nav="">About</a>
+        <a href="index.html#contact" data-nav="">Contact</a>
+        <a href="orders.html" data-nav="orders.html">My Orders</a>
+      </nav>
+      <div class="header-actions">
+        <button type="button" class="identity-chip" id="identityChip">
+          <span class="identity-chip__avatar">👤</span>
+          <span id="identityLabel">Choose your name</span>
+        </button>
+        <a href="cart.html" class="cart-btn" aria-label="View cart">
+          🧺
+          <span class="cart-badge" id="cartCount" hidden>0</span>
+        </a>
+        <button type="button" class="nav-toggle" id="navToggle" aria-label="Toggle menu">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="identity-modal" id="identityModal" hidden>
+    <div class="identity-modal__panel">
+      <div class="identity-modal__head">
+        <h3>Who's ordering?</h3>
+        <button type="button" id="identityClose" aria-label="Close">✕</button>
+      </div>
+      <p class="form-hint">This demo has no sign-up yet — pick an existing customer record to browse as them.</p>
+      <ul class="identity-list" id="identityList"></ul>
+    </div>
+  </div>
+
+  <main>
+    <section class="section" style="padding-top:32px;">
+      <div class="container">
+        <p class="breadcrumb"><a href="products.html">← Back to all products</a></p>
+        <div id="productDetail">
+          <div class="detail-grid">
+            <div class="skeleton" style="aspect-ratio:1/1;border-radius:18px;"></div>
+            <div>
+              <div class="skeleton" style="height:20px;width:120px;margin-bottom:16px;"></div>
+              <div class="skeleton" style="height:44px;width:80%;margin-bottom:16px;"></div>
+              <div class="skeleton" style="height:32px;width:140px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <div class="footer-brand">Meera Bakery</div>
+          <p>Freshly baked, made with love — a home-kitchen bakery in Bengaluru, built as a learning project on AWS.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Shop</h4>
+          <a href="products.html">All products</a>
+          <a href="cart.html">Cart</a>
+          <a href="orders.html">My orders</a>
+        </div>
+        <div class="footer-col">
+          <h4>Bakery</h4>
+          <a href="index.html#about">Our story</a>
+          <a href="index.html#contact">Visit us</a>
+        </div>
+        <div class="footer-col">
+          <h4>Contact</h4>
+          <a href="tel:+919876543210">+91 98765 43210</a>
+          <a href="mailto:hello@meerabakery.example">hello@meerabakery.example</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2026 Meera Bakery Online. A learning project — no real order will be fulfilled.</span>
+        <span>Made with FastAPI + MySQL on AWS</span>
+      </div>
+    </div>
+  </footer>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="js/api.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/product.js"></script>
+</body>
+</html>

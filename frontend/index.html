@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Meera Bakery Online — freshly baked bread, cakes, pastries and more, made in a home kitchen in Bengaluru." />
+  <title>Meera Bakery Online — Freshly Baked, Made With Love</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- ====================================================================
+       HEADER
+  ==================================================================== -->
+  <header class="site-header">
+    <div class="container site-header__bar">
+      <a href="index.html" class="brand">
+        <span class="brand__mark">M</span>
+        Meera Bakery
+      </a>
+
+      <nav class="main-nav" id="mainNav">
+        <a href="index.html" data-nav="index.html">Home</a>
+        <a href="products.html" data-nav="products.html">Products</a>
+        <a href="index.html#about" data-nav="">About</a>
+        <a href="index.html#contact" data-nav="">Contact</a>
+        <a href="orders.html" data-nav="orders.html">My Orders</a>
+      </nav>
+
+      <div class="header-actions">
+        <button type="button" class="identity-chip" id="identityChip">
+          <span class="identity-chip__avatar">👤</span>
+          <span id="identityLabel">Choose your name</span>
+        </button>
+        <a href="cart.html" class="cart-btn" aria-label="View cart">
+          🧺
+          <span class="cart-badge" id="cartCount" hidden>0</span>
+        </a>
+        <button type="button" class="nav-toggle" id="navToggle" aria-label="Toggle menu">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Identity picker modal -->
+  <div class="identity-modal" id="identityModal" hidden>
+    <div class="identity-modal__panel">
+      <div class="identity-modal__head">
+        <h3>Who's ordering?</h3>
+        <button type="button" id="identityClose" aria-label="Close">✕</button>
+      </div>
+      <p class="form-hint">This demo has no sign-up yet — pick an existing customer record to browse as them.</p>
+      <ul class="identity-list" id="identityList"></ul>
+    </div>
+  </div>
+
+  <main>
+
+    <!-- ==================================================================
+         HERO
+    ================================================================== -->
+    <section class="hero">
+      <div class="container hero__grid">
+        <div>
+          <p class="hero__eyebrow">A home kitchen in Bengaluru</p>
+          <h1>Freshly baked,<br />made with <em>love</em>.</h1>
+          <p class="lead">
+            Every loaf, every slice, every pastry — crafted daily from scratch
+            using traditional recipes and the finest local ingredients. No
+            shortcuts, just good baking.
+          </p>
+          <div class="hero__actions">
+            <a href="products.html" class="btn btn--primary">Explore Products</a>
+            <a href="index.html#about" class="link-arrow">Our story →</a>
+          </div>
+        </div>
+        <div class="hero__art">
+          <span class="hero__art-emoji">🥐</span>
+          <span class="hero__stamp">Baked<br>Today</span>
+        </div>
+      </div>
+    </section>
+    <div class="scallop"></div>
+
+    <!-- ==================================================================
+         CATEGORY STRIP
+    ================================================================== -->
+    <section class="section">
+      <div class="container">
+        <div class="section-head section-head--center" style="margin-left:auto;margin-right:auto;">
+          <h2 class="text-center">Shop by category</h2>
+        </div>
+        <div class="category-strip" id="categoryStrip">
+          <!-- filled by main.js, static fallback below -->
+          <a href="products.html?category=Bread" class="category-tag">
+            <div class="category-tag__icon">🍞</div>
+            <div class="category-tag__name">Bread</div>
+          </a>
+          <a href="products.html?category=Cake" class="category-tag">
+            <div class="category-tag__icon">🎂</div>
+            <div class="category-tag__name">Cake</div>
+          </a>
+          <a href="products.html?category=Pastry" class="category-tag">
+            <div class="category-tag__icon">🥐</div>
+            <div class="category-tag__name">Pastry</div>
+          </a>
+          <a href="products.html?category=Cookie" class="category-tag">
+            <div class="category-tag__icon">🍪</div>
+            <div class="category-tag__name">Cookie</div>
+          </a>
+          <a href="products.html?category=Beverage" class="category-tag">
+            <div class="category-tag__icon">☕</div>
+            <div class="category-tag__name">Beverage</div>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================================================================
+         POPULAR PRODUCTS (live from API)
+    ================================================================== -->
+    <section class="section section--deep">
+      <div class="container">
+        <div class="section-head" style="display:flex;align-items:flex-end;justify-content:space-between;max-width:none;flex-wrap:wrap;gap:16px;">
+          <div>
+            <p class="eyebrow">From the oven</p>
+            <h2 style="margin-bottom:0;">Popular products</h2>
+          </div>
+          <a href="products.html" class="link-arrow">View full menu →</a>
+        </div>
+        <div class="product-grid" id="popularProducts">
+          <div class="skeleton" style="height:280px;"></div>
+          <div class="skeleton" style="height:280px;"></div>
+          <div class="skeleton" style="height:280px;"></div>
+          <div class="skeleton" style="height:280px;"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================================================================
+         ABOUT
+    ================================================================== -->
+    <section class="section" id="about">
+      <div class="container" style="display:grid;grid-template-columns:1.1fr 0.9fr;gap:48px;align-items:center;">
+        <div>
+          <p class="eyebrow">Our story</p>
+          <h2>Baked from a home kitchen, with a bakery's heart</h2>
+          <p>
+            Meera Bakery started as a small home kitchen in Bengaluru, driven
+            by one simple belief — food made with love tastes better. Every
+            morning before sunrise, our bakers are at work, mixing, proving,
+            and baking so that everything on your table is truly fresh.
+          </p>
+          <p>
+            We keep our menu small on purpose: a short list of things we've
+            perfected, made the same honest way every single day.
+          </p>
+          <a href="index.html#contact" class="btn btn--outline">Get in touch</a>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div class="summary-card" style="text-align:center;position:static;">
+            <div style="font-family:var(--font-display);font-size:2rem;color:var(--jam);">100%</div>
+            <p style="margin:0;font-size:0.85rem;">Fresh daily</p>
+          </div>
+          <div class="summary-card" style="text-align:center;position:static;">
+            <div style="font-family:var(--font-display);font-size:2rem;color:var(--jam);">6</div>
+            <p style="margin:0;font-size:0.85rem;">Categories baked</p>
+          </div>
+          <div class="summary-card" style="text-align:center;position:static;">
+            <div style="font-family:var(--font-display);font-size:2rem;color:var(--jam);">0</div>
+            <p style="margin:0;font-size:0.85rem;">Preservatives used</p>
+          </div>
+          <div class="summary-card" style="text-align:center;position:static;">
+            <div style="font-family:var(--font-display);font-size:2rem;color:var(--jam);">AM</div>
+            <p style="margin:0;font-size:0.85rem;">Baked before sunrise</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="scallop scallop--deep"></div>
+
+    <!-- ==================================================================
+         CONTACT
+    ================================================================== -->
+    <section class="section section--deep" id="contact">
+      <div class="container">
+        <div class="section-head section-head--center" style="margin-left:auto;margin-right:auto;">
+          <p class="eyebrow">Visit us</p>
+          <h2>We'd love to see you in the bakery</h2>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;">
+          <div class="summary-card" style="position:static;">
+            <div style="font-size:1.6rem;margin-bottom:8px;">📍</div>
+            <h3>Location</h3>
+            <p>42 MG Road, Near Central Mall<br />Bengaluru, Karnataka 560001<br />India</p>
+          </div>
+          <div class="summary-card" style="position:static;">
+            <div style="font-size:1.6rem;margin-bottom:8px;">🕒</div>
+            <h3>Opening hours</h3>
+            <p>Mon – Sat: 7:00 AM – 8:00 PM<br />Sunday: 8:00 AM – 2:00 PM</p>
+          </div>
+          <div class="summary-card" style="position:static;">
+            <div style="font-size:1.6rem;margin-bottom:8px;">📞</div>
+            <h3>Get in touch</h3>
+            <p>+91 98765 43210<br />hello@meerabakery.example</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ====================================================================
+       FOOTER
+  ==================================================================== -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <div class="footer-brand">Meera Bakery</div>
+          <p>Freshly baked, made with love — a home-kitchen bakery in Bengaluru, built as a learning project on AWS.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Shop</h4>
+          <a href="products.html">All products</a>
+          <a href="cart.html">Cart</a>
+          <a href="orders.html">My orders</a>
+        </div>
+        <div class="footer-col">
+          <h4>Bakery</h4>
+          <a href="index.html#about">Our story</a>
+          <a href="index.html#contact">Visit us</a>
+        </div>
+        <div class="footer-col">
+          <h4>Contact</h4>
+          <a href="tel:+919876543210">+91 98765 43210</a>
+          <a href="mailto:hello@meerabakery.example">hello@meerabakery.example</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2026 Meera Bakery Online. A learning project — no real order will be fulfilled.</span>
+        <span>Made with FastAPI + MySQL on AWS</span>
+      </div>
+    </div>
+  </footer>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="js/api.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
