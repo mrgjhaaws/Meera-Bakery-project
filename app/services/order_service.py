@@ -18,6 +18,10 @@ Responsibilities
 - Enforce order status transitions via utils.financial.validate_status_transition.
 - Apply inventory side effects (decrement on confirm, increment on cancel)
   in the SAME transaction as the status update.
+- Fire a best-effort SNS SMS notification to the customer after order
+  creation and after each status change (see utils/notifications.py).
+  These run AFTER conn.commit() and never raise — a notification failure
+  must never affect the already-successful order.
 
 Inventory timing (important)
 -----------------------------
@@ -66,6 +70,7 @@ from repositories import (
     order_repository,
     product_repository,
 )
+from utils import notifications
 from utils.exceptions import BusinessRuleError
 from utils.financial import (
     INVENTORY_DECREMENT_ON,
@@ -255,6 +260,10 @@ def create_order(
         new_order_id, order_data.customer_id, totals.total_amount,
     )
 
+    # Best-effort — never raises, and runs after the commit so a notification
+    # failure can never roll back an already-successful order.
+    notifications.notify_order_placed(customer.get("phone"), new_order_id, totals.total_amount)
+
     return get_order(conn, new_order_id)
 
 
@@ -415,5 +424,16 @@ def update_order_status(
         "update_order_status: order_id=%d %s -> %s",
         order_id, current_status, requested,
     )
+
+    # Best-effort — must never affect the already-committed status change,
+    # so any failure here (including in the customer lookup itself) is
+    # swallowed rather than propagated.
+    try:
+        customer = customer_repository.get_by_id(conn, current_order["customer_id"])
+        notifications.notify_order_status_changed(customer.get("phone"), order_id, requested)
+    except Exception:
+        logger.warning(
+            "Could not send status-change notification for order %d", order_id, exc_info=True
+        )
 
     return get_order(conn, order_id)

@@ -87,6 +87,26 @@ class Settings(BaseSettings):
     )
 
     # -------------------------------------------------------------------------
+    # AWS SNS (order notifications) — off by default
+    # -------------------------------------------------------------------------
+    aws_region: str = Field(
+        default="ap-south-1",
+        description="AWS region for SNS (and any other AWS SDK calls).",
+    )
+    sns_notifications_enabled: bool = Field(
+        default=False,
+        description="Master switch for SNS notifications. Off by default so "
+                    "local dev and the test suite never make real AWS calls. "
+                    "No AWS access keys are read here — on EC2, boto3 uses "
+                    "the instance's IAM role automatically.",
+    )
+    sns_admin_topic_arn: str = Field(
+        default="",
+        description="SNS topic ARN for bakery-admin alerts (e.g. low-stock). "
+                    "Leave blank if you're not using topic-based notifications yet.",
+    )
+
+    # -------------------------------------------------------------------------
     # Validators
     # -------------------------------------------------------------------------
     @field_validator("app_env")
