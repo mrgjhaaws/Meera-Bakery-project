@@ -15,41 +15,6 @@ jobs:
 
     steps:
 
-      - name: Show OIDC Subject
-        shell: bash
-        run: |
-          set -e
-
-          echo "Requesting GitHub OIDC token..."
-
-          TOKEN=$(curl -sSf \
-            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com" \
-            | jq -r '.value')
-
-          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
-            echo "Failed to obtain OIDC token."
-            exit 1
-          fi
-
-          PAYLOAD=$(printf '%s' "$TOKEN" \
-            | cut -d '.' -f 2 \
-            | tr '_-' '/+' \
-            | base64 -d 2>/dev/null)
-
-          echo "OIDC claims:"
-          echo "$PAYLOAD" | jq '{
-            sub,
-            aud,
-            repository,
-            repository_id,
-            repository_owner,
-            repository_owner_id
-          }'
-        env:
-          ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
-          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
