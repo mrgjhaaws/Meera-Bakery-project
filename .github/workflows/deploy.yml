@@ -1,0 +1,38 @@
+name: Deploy Meera Bakery to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::660233303646:role/GitHubActions-MeeraBakery-Deploy
+          aws-region: ap-south-1
+
+      - name: Deploy to EC2 through SSM
+        run: |
+          aws ssm send-command \
+            --targets "Key=tag:Name,Values=Meera-Bakery-Web" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy Meera Bakery from GitHub" \
+            --parameters 'commands=[
+              "cd /opt/Meera-Bakery-project",
+              "git fetch origin main",
+              "git reset --hard origin/main",
+              "/opt/Meera-Bakery-project/venv/bin/pip install -r app/requirements.txt",
+              "sudo systemctl restart meera-bakery",
+              "sleep 5",
+              "curl -f http://127.0.0.1:8000/health"
+            ]' \
+            --region ap-south-1
