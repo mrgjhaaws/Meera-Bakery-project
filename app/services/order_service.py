@@ -71,7 +71,7 @@ from repositories import (
     product_repository,
 )
 from utils import notifications
-from utils.exceptions import BusinessRuleError
+from utils.exceptions import BusinessRuleError, InsufficientStockError
 from utils.financial import (
     INVENTORY_DECREMENT_ON,
     INVENTORY_INCREMENT_ON,
@@ -403,12 +403,49 @@ def update_order_status(
 
     if requested in INVENTORY_DECREMENT_ON:
         for item in current_order["items"]:
-            inventory_repository.decrement_stock(
-                conn,
-                item["product_id"],
-                item["product_name"],
-                item["quantity"],
-            )
+            try:
+                inventory_repository.decrement_stock(
+                    conn,
+                    item["product_id"],
+                    item["product_name"],
+                    item["quantity"],
+                )
+            except InsufficientStockError as exc:
+                # Best-effort customer SMS + admin email.
+                # Never hide the original stock error.
+                try:
+                    customer = customer_repository.get_by_id(
+                        conn, current_order["customer_id"]
+                    )
+
+                    detail = exc.detail or {}
+
+                    notifications.notify_out_of_stock(
+                        customer.get("phone"),
+                        order_id,
+                        detail.get("product_name", item["product_name"]),
+                        detail.get("requested", item["quantity"]),
+                        detail.get("available", 0),
+                    )
+
+                    notifications.publish_to_topic(
+                        subject=f"Meera Bakery - Order #{order_id} Out of Stock",
+                        message=(
+                            f"Order #{order_id} could not be confirmed.\n"
+                            f"Product: {detail.get('product_name', item['product_name'])}\n"
+                            f"Requested: {detail.get('requested', item['quantity'])}\n"
+                            f"Available: {detail.get('available', 0)}\n"
+                            f"Meera Bakery admin notification."
+                        ),
+                    )
+                except Exception:
+                    logger.warning(
+                        "Could not send out-of-stock notification for order %d",
+                        order_id,
+                        exc_info=True,
+                    )
+
+                raise
     elif requested in INVENTORY_INCREMENT_ON and current_status not in NO_INVENTORY_REVERSAL_FROM:
         for item in current_order["items"]:
             inventory_repository.increment_stock(

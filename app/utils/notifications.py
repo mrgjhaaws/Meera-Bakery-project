@@ -149,3 +149,34 @@ def notify_order_status_changed(phone_number: Optional[str], order_id: int, stat
     }.get(status, f"is now '{status}'")
     message = f"Meera Bakery: Your order #{order_id} {friendly}."
     _publish_sms(phone_number, message)
+
+
+def notify_out_of_stock(phone, order_id, product_name, requested, available):
+    if not settings.sns_notifications_enabled:
+        return
+
+    message = (
+        f"Meera Bakery: Order #{order_id} cannot be confirmed. "
+        f"{product_name} is out of stock. "
+        f"Requested: {requested}, Available: {available}."
+    )
+
+    try:
+        sns = boto3.client("sns", region_name=settings.aws_region)
+
+        sns.publish(
+            PhoneNumber=phone,
+            Message=message
+        )
+
+        logger.info(
+            "Out-of-stock SMS sent for order #%s to customer",
+            order_id
+        )
+
+    except Exception as exc:
+        logger.warning(
+            "Failed to send out-of-stock SMS for order #%s: %s",
+            order_id,
+            exc
+        )
