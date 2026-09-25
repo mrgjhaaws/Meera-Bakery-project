@@ -429,11 +429,27 @@ def update_order_status(
     # so any failure here (including in the customer lookup itself) is
     # swallowed rather than propagated.
     try:
-        customer = customer_repository.get_by_id(conn, current_order["customer_id"])
-        notifications.notify_order_status_changed(customer.get("phone"), order_id, requested)
-    except Exception:
-        logger.warning(
-            "Could not send status-change notification for order %d", order_id, exc_info=True
+
+      customer = customer_repository.get_by_id(conn, current_order["customer_id"])
+
+      notifications.notify_order_status_changed(
+        customer.get("phone"),
+        order_id,
+        requested,
+         )
+
+      notifications.publish_to_topic(
+        subject=f"Meera Bakery - Order #{order_id} {requested.title()}",
+        message=(
+            f"Order #{order_id} status changed to {requested}.\n"
+            f"Meera Bakery admin notification."
+        ),
         )
+
+    except Exception:
+
+      logger.warning(
+        "Could not send status-change notification for order %d", order_id, exc_info=True
+    )
 
     return get_order(conn, order_id)
