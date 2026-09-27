@@ -15,16 +15,25 @@ jobs:
 
     steps:
 
+      # ---------------------------------------------------------
+      # 1. Configure AWS credentials using GitHub OIDC
+      # ---------------------------------------------------------
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::660233303646:role/GitHubActions-MeeraBakery-Deploy
           aws-region: ap-south-1
 
+      # ---------------------------------------------------------
+      # 2. Deploy application to EC2 using AWS Systems Manager
+      # ---------------------------------------------------------
       - name: Deploy to EC2 through SSM
         run: |
           set -e
 
+          # ---------------------------------------------------
+          # Find running Meera Bakery EC2 instance
+          # ---------------------------------------------------
           INSTANCE_ID=$(aws ec2 describe-instances \
             --filters \
               "Name=tag:Name,Values=Meera-Bakery-Web" \
@@ -35,19 +44,46 @@ jobs:
 
           echo "Target EC2 Instance: $INSTANCE_ID"
 
+          # ---------------------------------------------------
+          # Send deployment commands to EC2
+          # ---------------------------------------------------
           COMMAND_ID=$(aws ssm send-command \
             --targets "Key=instanceIds,Values=$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
             --comment "Deploy Meera Bakery from GitHub" \
             --parameters 'commands=[
               "set -e",
+
+              "echo Starting Meera Bakery deployment",
+
               "cd /opt/Meera-Bakery-project",
+
+              "echo Fetching latest code from GitHub",
               "git fetch origin main",
               "git reset --hard origin/main",
+
+              "echo Installing Python dependencies",
               "/opt/Meera-Bakery-project/venv/bin/pip install -r app/requirements.txt",
+
+              "echo Synchronizing frontend files",
+              "sudo rsync -av --delete /opt/Meera-Bakery-project/frontend/ /var/www/html/",
+
+              "echo Reloading Apache",
+              "sudo systemctl reload httpd",
+
+              "echo Restarting FastAPI",
               "sudo systemctl restart meera-bakery",
+
+              "echo Waiting for FastAPI",
               "sleep 10",
-              "curl -f http://127.0.0.1:8000/health"
+
+              "echo Checking FastAPI health",
+              "curl -f http://127.0.0.1:8000/health",
+
+              "echo Checking frontend",
+              "test -f /var/www/html/index.html",
+
+              "echo Deployment completed successfully"
             ]' \
             --query "Command.CommandId" \
             --output text \
@@ -55,6 +91,9 @@ jobs:
 
           echo "SSM Command ID: $COMMAND_ID"
 
+          # ---------------------------------------------------
+          # Wait for SSM deployment to finish
+          # ---------------------------------------------------
           for i in {1..30}; do
 
             STATUS=$(aws ssm get-command-invocation \
@@ -76,6 +115,8 @@ jobs:
                [ "$STATUS" = "TimedOut" ]; then
 
               echo "Deployment failed with status: $STATUS"
+
+              echo "----- SSM COMMAND OUTPUT -----"
 
               aws ssm get-command-invocation \
                 --command-id "$COMMAND_ID" \
