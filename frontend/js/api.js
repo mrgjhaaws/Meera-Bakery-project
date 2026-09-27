@@ -10,8 +10,8 @@
  * (see app/config.py / .env) must include that origin.
  */
 
-const API_BASE_URL = "http://localhost:8000/api/v1";
 
+const API_BASE_URL = "/api/v1";
 class ApiError extends Error {
   constructor(status, body) {
     super(body?.message || `Request failed with status ${status}`);
