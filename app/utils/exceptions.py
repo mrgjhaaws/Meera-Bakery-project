@@ -19,6 +19,8 @@ Exception hierarchy
     ├── ConflictError         → HTTP 409  (duplicate unique key, FK violation)
     ├── BusinessRuleError     → HTTP 409  (invalid status transition, bad discount)
     ├── InsufficientStockError→ HTTP 409  (stock check failed before order confirm)
+    ├── AuthenticationError   → HTTP 401  (bad/expired OTP, invalid access token)
+    ├── EmailDeliveryError    → HTTP 502  (SES failed to send the OTP email)
     └── DatabaseError         → HTTP 500  (unexpected DB failure, logged internally)
 """
 
@@ -177,6 +179,39 @@ class DatabaseError(MeeraBakeryError):
         )
 
 
+class AuthenticationError(MeeraBakeryError):
+    """Raised when OTP verification or access-token validation fails.
+
+    Maps to HTTP 401.
+
+    Example
+    -------
+        raise AuthenticationError("Incorrect code. 2 attempt(s) remaining.")
+    """
+
+    def __init__(self, message: str = "Authentication failed.") -> None:
+        super().__init__(error_code="AUTHENTICATION_FAILED", message=message)
+
+
+class EmailDeliveryError(MeeraBakeryError):
+    """Raised when AWS SES fails to send the OTP login email.
+
+    Maps to HTTP 502 — the failure is genuinely upstream (SES/network),
+    not a client mistake and not our own database.
+
+    Example
+    -------
+        raise EmailDeliveryError("meera@example.com")
+    """
+
+    def __init__(self, to_email: str) -> None:
+        super().__init__(
+            error_code="EMAIL_DELIVERY_FAILED",
+            message="We couldn't send the verification email. Please try again in a moment.",
+            detail={"email": to_email},
+        )
+
+
 # =============================================================================
 # FastAPI exception handlers
 # =============================================================================
@@ -216,6 +251,18 @@ def register_exception_handlers(app: FastAPI) -> None:
         request: Request, exc: DatabaseError
     ) -> JSONResponse:
         return _json_error(500, exc)
+
+    @app.exception_handler(AuthenticationError)
+    async def authentication_error_handler(
+        request: Request, exc: AuthenticationError
+    ) -> JSONResponse:
+        return _json_error(401, exc)
+
+    @app.exception_handler(EmailDeliveryError)
+    async def email_delivery_error_handler(
+        request: Request, exc: EmailDeliveryError
+    ) -> JSONResponse:
+        return _json_error(502, exc)
 
     @app.exception_handler(MeeraBakeryError)
     async def generic_app_error_handler(

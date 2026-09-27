@@ -16,7 +16,10 @@ Table columns used here :
 
 Security notes
 --------------
-- No password or password_hash field — authentication is external (AWS Cognito).
+- No password or password_hash field — authentication is via one-time
+  passcodes emailed through AWS SES (see models/auth.py, services/auth_service.py).
+  A successful OTP verification issues a JWT access token; there is still
+  no stored credential on the customer row itself.
 - email is included in responses; the application layer must ensure that
   only authorised callers can list or look up customer records.
 

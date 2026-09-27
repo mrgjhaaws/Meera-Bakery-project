@@ -20,10 +20,10 @@ Usage
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import List
+from typing import Annotated, List
 
-from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, field_validator, model_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -81,7 +81,7 @@ class Settings(BaseSettings):
     # -------------------------------------------------------------------------
     # CORS
     # -------------------------------------------------------------------------
-    allowed_origins: List[str] = Field(
+    allowed_origins: Annotated[List[str], NoDecode] = Field(
         default=["http://localhost:3000", "http://localhost:8000"],
         description="Comma-separated list of allowed CORS origins",
     )
@@ -107,6 +107,48 @@ class Settings(BaseSettings):
     )
 
     # -------------------------------------------------------------------------
+    # Email OTP login (AWS SES) — off by default
+    # -------------------------------------------------------------------------
+    # SES, not SNS SMS, powers login: SES has a real free tier (62,000
+    # emails/month sending from an EC2 instance); SNS SMS is pay-per-message
+    # with no free tier, which is why order notifications (SNS) and login
+    # (SES) deliberately use different AWS services.
+    ses_enabled: bool = Field(
+        default=False,
+        description="Master switch for sending real OTP emails via AWS SES. "
+                    "Off by default: the OTP is logged (and, outside "
+                    "production, returned in the API response) instead of "
+                    "emailed — lets you build/test the login flow with zero "
+                    "AWS setup. No AWS access keys are read here — on EC2, "
+                    "boto3 uses the instance's IAM role.",
+    )
+    ses_sender_email: str = Field(
+        default="",
+        description="Verified SES sender identity, e.g. no-reply@yourdomain.com. "
+                    "Required when SES_ENABLED=true.",
+    )
+    otp_expiry_minutes: int = Field(default=10, ge=1, le=60)
+    otp_max_attempts: int = Field(default=5, ge=1, le=10)
+    otp_request_cooldown_seconds: int = Field(
+        default=60, ge=0,
+        description="Minimum time between two OTP requests for the same email.",
+    )
+
+    # -------------------------------------------------------------------------
+    # JWT session tokens (issued after OTP verification)
+    # -------------------------------------------------------------------------
+    jwt_secret_key: str = Field(
+        default="dev-only-insecure-secret-change-me",
+        description="HMAC signing key for access tokens. MUST be overridden "
+                    "in production — enforced by _check_production_secrets below.",
+    )
+    jwt_expiry_minutes: int = Field(
+        default=10080,  # 7 days — a customer-facing site, so a long session is fine
+        ge=5,
+        description="How long an issued access token stays valid.",
+    )
+
+    # -------------------------------------------------------------------------
     # Validators
     # -------------------------------------------------------------------------
     @field_validator("app_env")
@@ -129,8 +171,16 @@ class Settings(BaseSettings):
     @field_validator("allowed_origins", mode="before")
     @classmethod
     def parse_origins(cls, v: object) -> List[str]:
-        """Accept either a list (from Python code) or a comma-separated string
-        (from the .env file)."""
+        """Split a comma-separated .env string into a list.
+
+        Requires the `Annotated[List[str], NoDecode]` type on the field
+        above — without NoDecode, pydantic-settings tries to JSON-decode
+        any string value for a List[str] field before validators ever run,
+        so a plain comma-separated string (e.g. "a,b") raises a
+        SettingsError instead of reaching this method at all. (Found the
+        hard way: this validator was silently dead code until NoDecode was
+        added — comma-separated ALLOWED_ORIGINS in .env failed outright.)
+        """
         if isinstance(v, str):
             return [origin.strip() for origin in v.split(",") if origin.strip()]
         return v  # type: ignore[return-value]
@@ -145,6 +195,19 @@ class Settings(BaseSettings):
     @property
     def is_local(self) -> bool:
         return self.app_env == "local"
+
+    @model_validator(mode="after")
+    def _check_production_secrets(self) -> "Settings":
+        """Fail fast at startup if production is misconfigured — same
+        philosophy as db_password having no default."""
+        if self.is_production and self.jwt_secret_key == "dev-only-insecure-secret-change-me":
+            raise ValueError(
+                "JWT_SECRET_KEY must be set to a strong random value in production. "
+                'Generate one with: python -c "import secrets; print(secrets.token_urlsafe(48))"'
+            )
+        if self.is_production and self.ses_enabled and not self.ses_sender_email:
+            raise ValueError("SES_SENDER_EMAIL must be set when SES_ENABLED=true.")
+        return self
 
 
 @lru_cache(maxsize=1)

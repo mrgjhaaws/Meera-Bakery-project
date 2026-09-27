@@ -18,6 +18,8 @@ Public interface
 ----------------
     get_all(conn, *, active_only, page, page_size) -> (total: int, rows: list[dict])
     get_by_id(conn, customer_id)                   -> dict
+    get_by_email(conn, email)                       -> dict | None
+    create(conn, *, first_name, last_name, email, phone=None) -> int
 """
 
 from __future__ import annotations
@@ -28,7 +30,7 @@ from typing import List, Tuple
 from mysql.connector import Error as MySQLError
 from mysql.connector.pooling import PooledMySQLConnection
 
-from utils.exceptions import DatabaseError, NotFoundError
+from utils.exceptions import ConflictError, DatabaseError, NotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -148,3 +150,78 @@ def get_by_id(
         raise NotFoundError("customer", customer_id)
 
     return _normalise(row)
+
+
+def get_by_email(conn: PooledMySQLConnection, email: str) -> dict | None:
+    """Return a customer row by email, or None if not found.
+
+    Unlike get_by_id, this does NOT raise NotFoundError — it's used by
+    services/auth_service.py to check "does an account already exist for
+    this email?", where "no" is an expected, ordinary outcome (new
+    signup), not an error.
+
+    Parameters
+    ----------
+    conn  : Pooled connection from get_db() dependency.
+    email : Email address to look up (exact match — emails are stored
+            lowercase-as-typed; no normalisation is applied here).
+
+    Returns
+    -------
+    dict | None
+    """
+    sql = f"""
+        SELECT {_SELECT_COLS}
+        FROM customers
+        WHERE email = %s
+    """
+    try:
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute(sql, (email,))
+        row: dict | None = cursor.fetchone()
+        cursor.close()
+    except MySQLError as exc:
+        raise DatabaseError(
+            internal_detail=f"customer_repository.get_by_email email={email}: {exc}"
+        ) from exc
+
+    return _normalise(row) if row else None
+
+
+def create(
+    conn: PooledMySQLConnection,
+    *,
+    first_name: str,
+    last_name: str,
+    email: str,
+    phone: str | None = None,
+) -> int:
+    """Insert a new customer row. Caller commits.
+
+    Used by services/auth_service.py to auto-register a customer the first
+    time they successfully request an OTP for a new email.
+
+    Raises
+    ------
+    ConflictError : email already exists (e.g. a race between two
+                    concurrent signups for the same address).
+    DatabaseError  : Unexpected MySQL error.
+    """
+    sql = """
+        INSERT INTO customers (first_name, last_name, email, phone, is_active, created_at, updated_at)
+        VALUES (%s, %s, %s, %s, 1, NOW(), NOW())
+    """
+    try:
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute(sql, (first_name, last_name, email, phone))
+        new_id = cursor.lastrowid
+        cursor.close()
+        return new_id
+    except MySQLError as exc:
+        if exc.errno == 1062:  # ER_DUP_ENTRY — the email UNIQUE constraint
+            raise ConflictError(
+                "email", f"An account with email {email} already exists."
+            ) from exc
+        raise DatabaseError(
+            internal_detail=f"customer_repository.create email={email}: {exc}"
+        ) from exc

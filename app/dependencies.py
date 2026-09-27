@@ -34,8 +34,10 @@ Design notes
 
 from __future__ import annotations
 
-from typing import Generator
+from typing import Generator, Optional
 
+from fastapi import Depends
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from mysql.connector.pooling import PooledMySQLConnection
 
 from config import Settings, get_settings
@@ -59,3 +61,54 @@ def get_settings_dep() -> Settings:
         app.dependency_overrides[get_settings_dep] = lambda: test_settings
     """
     return get_settings()
+
+
+# auto_error=False so a missing/malformed Authorization header reaches our
+# own AuthenticationError (consistent JSON error shape) instead of FastAPI's
+# default 403 with a different shape.
+_bearer_scheme = HTTPBearer(auto_error=False)
+
+
+def get_current_customer(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer_scheme),
+    conn: PooledMySQLConnection = Depends(get_db),
+):
+    """Resolve the logged-in customer from the request's Bearer token.
+
+    Use on any endpoint that should require login:
+        customer = Depends(get_current_customer)
+
+    Raises
+    ------
+    AuthenticationError : missing/malformed header, expired/invalid token,
+                          or the token's customer no longer exists / is
+                          inactive. Maps to HTTP 401 (see utils/exceptions.py).
+    """
+    # Local imports to avoid a circular import at module load time
+    # (repositories -> utils.exceptions -> ... -> dependencies in some
+    # import orders); cheap enough to not matter for a per-request call.
+    from models.customer import CustomerResponse
+    from repositories import customer_repository
+    from utils import jwt_auth
+    from utils.exceptions import AuthenticationError, NotFoundError
+
+    if credentials is None:
+        raise AuthenticationError("Missing or malformed Authorization header.")
+
+    try:
+        payload = jwt_auth.decode_access_token(credentials.credentials)
+    except jwt_auth.InvalidTokenException as exc:
+        raise AuthenticationError(str(exc)) from exc
+
+    customer_id = int(payload["sub"])
+    try:
+        customer = customer_repository.get_by_id(conn, customer_id)
+    except NotFoundError as exc:
+        # The token is structurally valid but its customer is gone — this
+        # is an auth failure from the caller's point of view, not a 404.
+        raise AuthenticationError("This account no longer exists.") from exc
+
+    if not customer["is_active"]:
+        raise AuthenticationError("This account is no longer active.")
+
+    return CustomerResponse(**customer)
