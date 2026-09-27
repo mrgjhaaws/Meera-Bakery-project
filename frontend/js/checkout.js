@@ -4,8 +4,8 @@
  * checkout.html only.
  *
  * Flow:
- *   1. Requires an identity (Store.getIdentity()) — the "Ordering as"
- *      customer. If none is set, prompts the shopper to pick one.
+ *   1. Requires a logged-in customer (Store.getIdentity(), set by the OTP
+ *      login flow in nav.js). If not logged in, prompts them to log in.
  *   2. Fetches that customer's addresses (GET /customers/{id}/addresses)
  *      and lets them choose one.
  *   3. Shows an order review built from the cart in localStorage.
@@ -42,8 +42,8 @@ async function init() {
     container.innerHTML = `
       <div class="empty-state">
         <div class="empty-state__icon">👤</div>
-        <p>Choose who's ordering before checking out.</p>
-        <button type="button" class="btn btn--primary" id="pickIdentityBtn">Choose your name</button>
+        <p>Please log in before checking out.</p>
+        <button type="button" class="btn btn--primary" id="pickIdentityBtn">Log in</button>
       </div>`;
     document.getElementById("pickIdentityBtn")?.addEventListener("click", () => {
       document.getElementById("identityChip")?.click();

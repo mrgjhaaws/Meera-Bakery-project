@@ -23,8 +23,8 @@ class ApiError extends Error {
 
 async function request(path, options = {}) {
   const res = await fetch(`${API_BASE_URL}${path}`, {
-    headers: { "Content-Type": "application/json" },
     ...options,
+    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
   });
 
   let body = null;
@@ -85,6 +85,25 @@ const Api = {
   getCustomerOrders(customerId, { page = 1, pageSize = 20 } = {}) {
     const params = new URLSearchParams({ page, page_size: pageSize });
     return request(`/customers/${customerId}/orders?${params}`);
+  },
+
+  // ---- Auth (OTP over email) ----
+  requestOtp({ email, first_name, last_name }) {
+    const body = { email };
+    if (first_name) body.first_name = first_name;
+    if (last_name) body.last_name = last_name;
+    return request(`/auth/request-otp`, { method: "POST", body: JSON.stringify(body) });
+  },
+  verifyOtp({ email, code }) {
+    return request(`/auth/verify-otp`, {
+      method: "POST",
+      body: JSON.stringify({ email, code }),
+    });
+  },
+  getMe(accessToken) {
+    return request(`/auth/me`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
   },
 };
 

@@ -28,7 +28,7 @@
       <div class="header-actions">
         <button type="button" class="identity-chip" id="identityChip">
           <span class="identity-chip__avatar">👤</span>
-          <span id="identityLabel">Choose your name</span>
+          <span id="identityLabel">Log in</span>
         </button>
         <a href="cart.html" class="cart-btn" aria-label="View cart">
           🧺
@@ -44,11 +44,40 @@
   <div class="identity-modal" id="identityModal" hidden>
     <div class="identity-modal__panel">
       <div class="identity-modal__head">
-        <h3>Who's ordering?</h3>
+        <h3>Log in</h3>
         <button type="button" id="identityClose" aria-label="Close">✕</button>
       </div>
-      <p class="form-hint">This demo has no sign-up yet — pick an existing customer record to browse as them.</p>
-      <ul class="identity-list" id="identityList"></ul>
+
+      <div id="loginBanner" class="banner banner--error" hidden></div>
+
+      <form id="requestOtpForm">
+        <p class="form-hint">Enter your email — we'll send you a 6-digit code.</p>
+        <div class="form-field">
+          <label for="loginEmail">Email</label>
+          <input type="email" id="loginEmail" required autocomplete="email" placeholder="you@example.com" />
+        </div>
+        <div id="signupNameFields" hidden>
+          <div class="form-field">
+            <label for="loginFirstName">First name</label>
+            <input type="text" id="loginFirstName" autocomplete="given-name" />
+          </div>
+          <div class="form-field">
+            <label for="loginLastName">Last name</label>
+            <input type="text" id="loginLastName" autocomplete="family-name" />
+          </div>
+        </div>
+        <button type="submit" class="btn btn--primary btn--block" id="sendCodeBtn">Send code</button>
+      </form>
+
+      <form id="verifyOtpForm" hidden>
+        <p class="form-hint">Enter the 6-digit code sent to <strong id="otpEmailLabel"></strong>.</p>
+        <div class="form-field">
+          <label for="loginOtpCode">Verification code</label>
+          <input type="text" id="loginOtpCode" inputmode="numeric" pattern="\d{6}" maxlength="6" required autocomplete="one-time-code" placeholder="000000" />
+        </div>
+        <button type="submit" class="btn btn--primary btn--block" id="verifyCodeBtn">Verify &amp; log in</button>
+        <button type="button" class="link-arrow" id="backToEmailBtn" style="margin-top:12px;display:inline-block;background:none;border:none;cursor:pointer;">← Use a different email</button>
+      </form>
     </div>
   </div>
 

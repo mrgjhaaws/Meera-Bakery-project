@@ -1,8 +1,9 @@
 /**
  * js/orders.js
  * =============
- * orders.html only. Requires an identity (see Store.getIdentity()) and
- * lists that customer's order history via GET /customers/{id}/orders.
+ * orders.html only. Requires a logged-in customer (Store.getIdentity(),
+ * set by the OTP login flow in nav.js) and lists that customer's order
+ * history via GET /customers/{id}/orders.
  */
 
 document.addEventListener("DOMContentLoaded", init);
@@ -16,8 +17,8 @@ async function init() {
     container.innerHTML = `
       <div class="empty-state">
         <div class="empty-state__icon">👤</div>
-        <p>Choose who you are to see order history.</p>
-        <button type="button" class="btn btn--primary" id="pickIdentityBtn">Choose your name</button>
+        <p>Please log in to see your order history.</p>
+        <button type="button" class="btn btn--primary" id="pickIdentityBtn">Log in</button>
       </div>`;
     document.getElementById("pickIdentityBtn")?.addEventListener("click", () => {
       document.getElementById("identityChip")?.click();

@@ -1,11 +1,12 @@
 /**
  * js/state.js
  * ============
- * localStorage-backed state: the shopping cart and the "ordering as"
- * identity (this demo has no auth — see nav.js for the picker UI).
+ * localStorage-backed state: the shopping cart and the logged-in
+ * customer's session (issued by POST /auth/verify-otp — see nav.js for
+ * the login UI).
  *
  * Cart shape: array of { productId, name, categoryName, unitPrice, quantity }
- * Identity shape: { customerId, firstName, lastName }
+ * Identity shape: { customerId, firstName, lastName, email, accessToken }
  */
 
 const CART_KEY = "meera_cart_v1";
@@ -71,7 +72,7 @@ const Store = {
     return Store.getCart().reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
   },
 
-  // ---- Identity ("ordering as") ----
+  // ---- Identity / session (real login via OTP email) ----
   getIdentity() {
     try {
       return JSON.parse(localStorage.getItem(IDENTITY_KEY));
@@ -80,18 +81,21 @@ const Store = {
     }
   },
 
-  setIdentity(customer) {
+  /** Store the session from a successful POST /auth/verify-otp response. */
+  setSession({ access_token, customer }) {
     const identity = {
       customerId: customer.customer_id,
       firstName: customer.first_name,
       lastName: customer.last_name,
+      email: customer.email,
+      accessToken: access_token,
     };
     localStorage.setItem(IDENTITY_KEY, JSON.stringify(identity));
     document.dispatchEvent(new CustomEvent("identity:changed", { detail: identity }));
     return identity;
   },
 
-  clearIdentity() {
+  logout() {
     localStorage.removeItem(IDENTITY_KEY);
     document.dispatchEvent(new CustomEvent("identity:changed", { detail: null }));
   },
