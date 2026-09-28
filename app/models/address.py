@@ -33,6 +33,7 @@ Response models
 AddressResponse      — full address record (GET /addresses/{id})
 AddressSummary       — slim row for list responses
 AddressListResponse  — paginated list wrapper, consistent with other list responses
+AddressCreate        — request body for POST /customers/{id}/addresses
 """
 
 from __future__ import annotations
@@ -109,3 +110,24 @@ class AddressListResponse(BaseModel):
     page: int = Field(..., description="Current page (1-based)")
     page_size: int = Field(..., description="Items per page")
     items: List[AddressSummary] = Field(..., description="Address records")
+
+
+class AddressCreate(BaseModel):
+    """Request body for POST /customers/{customer_id}/addresses.
+
+    is_default is a hint, not a guarantee: if this is the customer's first
+    address, the repository forces is_default=True regardless of what's
+    sent here, since a customer should never be left with zero default
+    addresses. Otherwise, setting is_default=True clears any previous
+    default for the same customer (is_default is app-enforced — see the
+    module docstring).
+    """
+
+    label: str = Field(default="Home", max_length=50, examples=["Home"])
+    address_line1: str = Field(..., min_length=1, max_length=255, examples=["42 MG Road, Flat 3B"])
+    address_line2: Optional[str] = Field(None, max_length=255, examples=["Near Central Mall"])
+    city: str = Field(..., min_length=1, max_length=100, examples=["Bengaluru"])
+    state: str = Field(..., min_length=1, max_length=100, examples=["Karnataka"])
+    postal_code: str = Field(..., min_length=1, max_length=20, examples=["560001"])
+    country: str = Field(default="India", max_length=60, examples=["India"])
+    is_default: bool = Field(default=False)

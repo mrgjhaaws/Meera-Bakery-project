@@ -20,7 +20,12 @@ import logging
 
 from mysql.connector.pooling import PooledMySQLConnection
 
-from models.address import AddressListResponse, AddressResponse, AddressSummary
+from models.address import (
+    AddressCreate,
+    AddressListResponse,
+    AddressResponse,
+    AddressSummary,
+)
 from repositories import address_repository
 from utils.exceptions import BusinessRuleError
 
@@ -117,4 +122,33 @@ def get_address(
     """
     logger.debug("get_address id=%d", address_id)
     row = address_repository.get_by_id(conn, address_id)
+    return AddressResponse(**row)
+
+
+def create_address(
+    conn: PooledMySQLConnection,
+    customer_id: int,
+    payload: AddressCreate,
+) -> AddressResponse:
+    """Create a new address for a customer.
+
+    Parameters
+    ----------
+    conn        : DB connection from get_db() dependency.
+    customer_id : PK of the customer this address belongs to.
+    payload     : Validated AddressCreate request body.
+
+    Returns
+    -------
+    AddressResponse — the newly created address.
+
+    Raises
+    ------
+    NotFoundError : Propagated from repository when customer_id does not exist.
+    DatabaseError  : Propagated from repository on unexpected MySQL error.
+    """
+    logger.debug("create_address customer_id=%d", customer_id)
+    new_id = address_repository.create(conn, customer_id, payload.model_dump())
+    conn.commit()
+    row = address_repository.get_by_id(conn, new_id)
     return AddressResponse(**row)

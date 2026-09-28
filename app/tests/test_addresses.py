@@ -25,6 +25,7 @@ from datetime import datetime
 from unittest.mock import MagicMock, call, patch
 
 import pytest
+from mysql.connector import Error as MySQLError
 
 from models.address import AddressListResponse, AddressResponse, AddressSummary
 from repositories import address_repository
@@ -350,3 +351,117 @@ class TestAddressServiceListAddresses:
             args, _ = mock_get_all.call_args
             # First positional arg after conn is customer_id
             assert args[1] == 7
+
+
+# =============================================================================
+# repositories/address_repository.create
+# =============================================================================
+
+class TestAddressRepositoryCreate:
+
+    def _payload(self, **overrides):
+        base = {
+            "label": "Home", "address_line1": "1 Test Street", "address_line2": None,
+            "city": "Bengaluru", "state": "Karnataka", "postal_code": "560001",
+            "country": "India", "is_default": False,
+        }
+        base.update(overrides)
+        return base
+
+    def test_raises_not_found_when_customer_missing(self):
+        cursor = MagicMock()
+        cursor.fetchone.return_value = None
+        conn = MagicMock()
+        conn.cursor.return_value = cursor
+
+        with pytest.raises(NotFoundError):
+            address_repository.create(conn, 999, self._payload())
+
+    def test_first_address_forced_default_even_if_not_requested(self):
+        cursor = MagicMock()
+        # 1st fetchone: customer exists; 2nd fetchone: count of active addresses = 0
+        cursor.fetchone.side_effect = [{"customer_id": 1}, {"n": 0}]
+        cursor.lastrowid = 10
+        conn = MagicMock()
+        conn.cursor.return_value = cursor
+
+        new_id = address_repository.create(conn, 1, self._payload(is_default=False))
+
+        assert new_id == 10
+        insert_call = cursor.execute.call_args_list[-1]
+        # is_default param (9th positional value in the INSERT) should be 1
+        assert insert_call.args[1][8] == 1
+
+    def test_second_address_not_forced_default(self):
+        cursor = MagicMock()
+        cursor.fetchone.side_effect = [{"customer_id": 1}, {"n": 1}]
+        cursor.lastrowid = 11
+        conn = MagicMock()
+        conn.cursor.return_value = cursor
+
+        address_repository.create(conn, 1, self._payload(is_default=False))
+
+        insert_call = cursor.execute.call_args_list[-1]
+        assert insert_call.args[1][8] == 0
+
+    def test_explicit_is_default_clears_previous_default(self):
+        cursor = MagicMock()
+        cursor.fetchone.side_effect = [{"customer_id": 1}, {"n": 1}]
+        cursor.lastrowid = 12
+        conn = MagicMock()
+        conn.cursor.return_value = cursor
+
+        address_repository.create(conn, 1, self._payload(is_default=True))
+
+        # Expect: verify, count, clear-default UPDATE, insert = 4 execute calls
+        assert cursor.execute.call_count == 4
+        clear_call_sql = cursor.execute.call_args_list[2].args[0]
+        assert "is_default = 0" in clear_call_sql
+
+    def test_database_error_on_mysql_error(self):
+        cursor = MagicMock()
+        cursor.execute.side_effect = MySQLError("boom")
+        conn = MagicMock()
+        conn.cursor.return_value = cursor
+
+        with pytest.raises(DatabaseError):
+            address_repository.create(conn, 1, self._payload())
+
+
+# =============================================================================
+# services/address_service.create_address
+# =============================================================================
+
+class TestCreateAddressService:
+
+    def test_creates_and_returns_full_address(self):
+        from models.address import AddressCreate
+
+        conn = MagicMock()
+        row = {
+            "address_id": 5, "customer_id": 1, "label": "Home",
+            "address_line1": "1 Test Street", "address_line2": None,
+            "city": "Bengaluru", "state": "Karnataka", "postal_code": "560001",
+            "country": "India", "is_default": True, "is_active": True,
+            "created_at": datetime.now(), "updated_at": datetime.now(),
+        }
+        with patch.object(address_repository, "create", return_value=5) as mock_create, \
+             patch.object(address_repository, "get_by_id", return_value=row):
+            payload = AddressCreate(address_line1="1 Test Street", city="Bengaluru",
+                                     state="Karnataka", postal_code="560001")
+            result = address_service.create_address(conn, 1, payload)
+
+        mock_create.assert_called_once()
+        conn.commit.assert_called_once()
+        assert isinstance(result, AddressResponse)
+        assert result.address_id == 5
+
+    def test_not_found_propagates(self):
+        from models.address import AddressCreate
+
+        conn = MagicMock()
+        with patch.object(address_repository, "create", side_effect=NotFoundError("customer", 999)):
+            payload = AddressCreate(address_line1="1 Test Street", city="Bengaluru",
+                                     state="Karnataka", postal_code="560001")
+            with pytest.raises(NotFoundError):
+                address_service.create_address(conn, 999, payload)

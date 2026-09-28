@@ -29,6 +29,8 @@ Public interface
         -> (total: int, rows: list[dict])
     get_by_id(conn, address_id)
         -> dict
+    create(conn, customer_id, data)
+        -> int
 """
 
 from __future__ import annotations
@@ -188,3 +190,78 @@ def get_by_id(
         raise NotFoundError("address", address_id)
 
     return _normalise(row)
+
+
+def create(conn: PooledMySQLConnection, customer_id: int, data: dict) -> int:
+    """Insert a new address for a customer. Caller commits.
+
+    Parameters
+    ----------
+    conn        : Pooled connection from get_db() dependency.
+    customer_id : FK to customers — existence is verified first.
+    data        : dict with keys label, address_line1, address_line2,
+                  city, state, postal_code, country, is_default (matches
+                  models.address.AddressCreate.model_dump()).
+
+    Returns
+    -------
+    int — the new address_id.
+
+    Raises
+    ------
+    NotFoundError : customer_id does not exist.
+    DatabaseError  : Unexpected MySQL error.
+    """
+    verify_sql = "SELECT customer_id FROM customers WHERE customer_id = %s"
+    count_active_sql = "SELECT COUNT(*) AS n FROM addresses WHERE customer_id = %s AND is_active = 1"
+    clear_default_sql = (
+        "UPDATE addresses SET is_default = 0 WHERE customer_id = %s AND is_default = 1"
+    )
+    insert_sql = """
+        INSERT INTO addresses
+            (customer_id, label, address_line1, address_line2, city, state,
+             postal_code, country, is_default, is_active, created_at, updated_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 1, NOW(), NOW())
+    """
+
+    try:
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute(verify_sql, (customer_id,))
+        if cursor.fetchone() is None:
+            cursor.close()
+            raise NotFoundError("customer", customer_id)
+
+        # A customer should never end up with zero default addresses — force
+        # is_default=True on their very first one, regardless of what was sent.
+        cursor.execute(count_active_sql, (customer_id,))
+        is_first_address = (cursor.fetchone() or {}).get("n", 0) == 0
+        is_default = 1 if (is_first_address or data.get("is_default")) else 0
+
+        if is_default:
+            cursor.execute(clear_default_sql, (customer_id,))
+
+        cursor.execute(
+            insert_sql,
+            (
+                customer_id,
+                data["label"],
+                data["address_line1"],
+                data.get("address_line2"),
+                data["city"],
+                data["state"],
+                data["postal_code"],
+                data["country"],
+                is_default,
+            ),
+        )
+        new_id = cursor.lastrowid
+        cursor.close()
+        return new_id
+
+    except NotFoundError:
+        raise
+    except MySQLError as exc:
+        raise DatabaseError(
+            internal_detail=f"address_repository.create customer_id={customer_id}: {exc}"
+        ) from exc

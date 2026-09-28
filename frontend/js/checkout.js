@@ -7,7 +7,8 @@
  *   1. Requires a logged-in customer (Store.getIdentity(), set by the OTP
  *      login flow in nav.js). If not logged in, prompts them to log in.
  *   2. Fetches that customer's addresses (GET /customers/{id}/addresses)
- *      and lets them choose one.
+ *      and lets them choose one — or add a new one inline via
+ *      POST /customers/{id}/addresses if they have none yet (or want another).
  *   3. Shows an order review built from the cart in localStorage.
  *   4. On submit, POSTs to /orders with a 5% GST default, clears the cart,
  *      and redirects to order-confirmation.html?id=<order_id>.
@@ -111,26 +112,63 @@ function renderReview(cart) {
     <div class="summary-row summary-row--total"><span>Total</span><span>${formatMoney(total)}</span></div>`;
 }
 
-async function loadAddresses(customerId) {
+async function loadAddresses(customerId, preferredAddressId = null) {
   const list = document.getElementById("addressList");
   try {
     const res = await Api.getCustomerAddresses(customerId);
-    if (!res.items.length) {
-      list.innerHTML = `<p style="color:var(--danger);">No saved addresses for this customer yet. Addresses can't be added from this demo UI — pick a different name, or add one via the API.</p>`;
-      return;
-    }
-    list.innerHTML = res.items
-      .map(
-        (a, i) => `
+    const items = res.items;
+    const showFormByDefault = items.length === 0;
+
+    const listHtml = items.length
+      ? items
+          .map(
+            (a) => `
         <label class="address-option">
-          <input type="radio" name="address" value="${a.address_id}" ${a.is_default || i === 0 ? "checked" : ""} />
+          <input type="radio" name="address" value="${a.address_id}"
+            ${a.address_id === preferredAddressId || (!preferredAddressId && a.is_default) ? "checked" : ""} />
           <div>
             <div class="address-option__label">${a.label}${a.is_default ? " · Default" : ""}</div>
-            <div class="address-option__body">${a.address_line1}, ${a.city}, ${a.state} ${a.postal_code}, ${a.country}</div>
+            <div class="address-option__body">${a.address_line1}${a.address_line2 ? ", " + a.address_line2 : ""}, ${a.city}, ${a.state} ${a.postal_code}, ${a.country}</div>
           </div>
         </label>`
-      )
-      .join("");
+          )
+          .join("")
+      : `<p style="color:var(--ink-soft);margin-bottom:16px;">No saved addresses yet — add one below to continue.</p>`;
+
+    list.innerHTML = `
+      ${listHtml}
+      <button type="button" id="toggleAddressFormBtn" class="link-arrow"
+        style="margin:8px 0 16px;display:${showFormByDefault ? "none" : "inline-block"};">
+        + Add a new address
+      </button>
+      <div id="newAddressForm" ${showFormByDefault ? "" : "hidden"}>
+        <div id="addressFormBanner" class="banner banner--error" hidden></div>
+        <div class="form-field">
+          <label for="addrLabel">Label</label>
+          <input type="text" id="addrLabel" placeholder="Home" value="Home" />
+        </div>
+        <div class="form-field">
+          <label for="addrLine1">Address line 1</label>
+          <input type="text" id="addrLine1" required placeholder="House / flat, street" />
+        </div>
+        <div class="form-field">
+          <label for="addrLine2">Address line 2 <span style="font-weight:400;color:var(--ink-soft);">(optional)</span></label>
+          <input type="text" id="addrLine2" placeholder="Landmark, area" />
+        </div>
+        <div class="form-field">
+          <label for="addrCity">City</label>
+          <input type="text" id="addrCity" required />
+        </div>
+        <div class="form-field">
+          <label for="addrState">State</label>
+          <input type="text" id="addrState" required />
+        </div>
+        <div class="form-field">
+          <label for="addrPostal">Postal code</label>
+          <input type="text" id="addrPostal" required />
+        </div>
+        <button type="button" id="saveAddressBtn" class="btn btn--outline btn--block">Save address</button>
+      </div>`;
 
     const checked = list.querySelector("input[name=address]:checked");
     selectedAddressId = checked ? Number(checked.value) : null;
@@ -139,6 +177,47 @@ async function loadAddresses(customerId) {
       input.addEventListener("change", () => {
         selectedAddressId = Number(input.value);
       });
+    });
+
+    document.getElementById("toggleAddressFormBtn")?.addEventListener("click", (e) => {
+      e.currentTarget.style.display = "none";
+      document.getElementById("newAddressForm").hidden = false;
+    });
+
+    document.getElementById("saveAddressBtn")?.addEventListener("click", async () => {
+      const banner = document.getElementById("addressFormBanner");
+      banner.hidden = true;
+
+      const payload = {
+        label: document.getElementById("addrLabel").value.trim() || "Home",
+        address_line1: document.getElementById("addrLine1").value.trim(),
+        address_line2: document.getElementById("addrLine2").value.trim() || null,
+        city: document.getElementById("addrCity").value.trim(),
+        state: document.getElementById("addrState").value.trim(),
+        postal_code: document.getElementById("addrPostal").value.trim(),
+        country: "India",
+      };
+
+      if (!payload.address_line1 || !payload.city || !payload.state || !payload.postal_code) {
+        banner.textContent = "Please fill in address line 1, city, state, and postal code.";
+        banner.hidden = false;
+        return;
+      }
+
+      const saveBtn = document.getElementById("saveAddressBtn");
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = `<span class="spinner"></span> Saving...`;
+      try {
+        const newAddress = await Api.createAddress(customerId, payload);
+        await loadAddresses(customerId, newAddress.address_id);
+        showToast("Address saved");
+      } catch (err) {
+        banner.textContent =
+          err instanceof ApiError ? err.message : "Couldn't save this address. Please try again.";
+        banner.hidden = false;
+        saveBtn.disabled = false;
+        saveBtn.textContent = "Save address";
+      }
     });
   } catch (err) {
     list.innerHTML = `<p style="color:var(--danger);">Couldn't load addresses. Is the API running at ${API_BASE_URL}?</p>`;

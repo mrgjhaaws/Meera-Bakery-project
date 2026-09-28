@@ -15,6 +15,10 @@ GET /api/v1/customers/{customer_id}/addresses
     Paginated list of addresses belonging to a customer.
     Returns 404 if the customer does not exist.
 
+POST /api/v1/customers/{customer_id}/addresses
+    Creates a new address for a customer. First address becomes their
+    default automatically. Returns 404 if the customer does not exist.
+
 GET /api/v1/customers/{customer_id}/orders
     Paginated order history for a customer (Phase 4).
     Returns 404 if the customer does not exist.
@@ -40,11 +44,11 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, status
 from mysql.connector.pooling import PooledMySQLConnection
 
 from dependencies import get_db
-from models.address import AddressListResponse, AddressResponse
+from models.address import AddressCreate, AddressListResponse, AddressResponse
 from models.customer import CustomerListResponse, CustomerResponse
 from models.order import OrderListResponse, OrderStatus
 from services import address_service, customer_service, order_service
@@ -129,6 +133,26 @@ def list_addresses(
         page=page,
         page_size=page_size,
     )
+
+
+@customers_router.post(
+    "/{customer_id}/addresses",
+    response_model=AddressResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Add an address for a customer",
+    description=(
+        "Creates a new delivery address for the given customer. The "
+        "customer's first address is automatically marked as their "
+        "default regardless of is_default in the request body. "
+        "Returns 404 if the customer does not exist."
+    ),
+)
+def create_customer_address(
+    customer_id: int,
+    payload: AddressCreate,
+    conn: PooledMySQLConnection = Depends(get_db),
+) -> AddressResponse:
+    return address_service.create_address(conn, customer_id, payload)
 
 
 @customers_router.get(

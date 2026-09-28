@@ -10,8 +10,8 @@
  * (see app/config.py / .env) must include that origin.
  */
 
+const API_BASE_URL = "http://localhost:8000/api/v1";
 
-const API_BASE_URL = "/api/v1";
 class ApiError extends Error {
   constructor(status, body) {
     super(body?.message || `Request failed with status ${status}`);
@@ -70,6 +70,12 @@ const Api = {
   // ---- Addresses ----
   getCustomerAddresses(customerId) {
     return request(`/customers/${customerId}/addresses?page_size=50`);
+  },
+  createAddress(customerId, payload) {
+    return request(`/customers/${customerId}/addresses`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
   },
 
   // ---- Orders ----
